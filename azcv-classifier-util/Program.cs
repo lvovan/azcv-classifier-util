@@ -48,6 +48,7 @@ namespace azcv_classifier_util
         static async Task Main(string[] args)
         {
             Console.WriteLine($"Azure Custom Vision Classifier Utility v{Program.VERSION}");
+            Console.WriteLine();
 
             var res = CommandLine.Parser.Default.ParseArguments<TagOptions, TrainOptions, PublishOptions, AugmentOptions>(args)
                 .MapResult(

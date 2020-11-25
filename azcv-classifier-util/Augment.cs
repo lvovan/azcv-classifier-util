@@ -17,13 +17,13 @@ namespace azcv_classifier_util
             Required = true)]
         public string ImageFile { get; set; }
 
-        [Option('c', "count", HelpText = "Number of augmentations to generate (default: 20)", Required = false, Default = 20)]
+        [Option('c', "count", HelpText = "Number of augmentations to generate (default: 5)", Required = false, Default = 5)]
         public int Count { get; set; }
 
-        [Option('r', "rotationrange", HelpText = "Maximum rotation range in degrees (default: 30)", Required = false, Default = 30)]
+        [Option('r', "rotationrange", HelpText = "Maximum rotation range in degrees (default: 10)", Required = false, Default = 10)]
         public int RotationRange { get; set; }
 
-        [Option('s', "resizerange", HelpText = "Maximum resize range in percent (default: 20)", Required = false, Default = 20)]
+        [Option('s', "resizerange", HelpText = "Maximum resize range in percent (default: 10)", Required = false, Default = 10)]
         public int ResizeRange { get; set; }
 
         [Option('b', "blurrange", HelpText = "Maximum blur range as a weight value (default: 2)", Required = false, Default = 2)]
@@ -41,8 +41,14 @@ namespace azcv_classifier_util
 
         public object Process()
         {
+            if (!File.Exists(Options.ImageFile))
+            {
+                Console.WriteLine($"File not found: {Options.ImageFile}");
+                return null;
+            }
+
             var rnd = new Random();
-            Console.WriteLine($"Generating {Options.Count} images:");
+            Console.WriteLine($"Generating {Options.Count} augmented images:");
             Console.WriteLine($" - Rotation range: +/- {Options.RotationRange}°");
             Console.WriteLine($" - Resize range: +/- {Options.ResizeRange}%");
             Console.WriteLine($" - Blur range: {Options.BlurRange}");
