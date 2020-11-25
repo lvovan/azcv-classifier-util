@@ -18,7 +18,7 @@ namespace azcv_classifier_util
         [Option('f', "folder", HelpText = "Base folder where the training images will be loaded from. Each folder within this base folder will be used as a tag name, and underlying files associated with that tag.", Required = true)]
         public string Folder { get; set; }
 
-        [Option('a', "croparea", HelpText = "Area to consider for classification training. Expected format is: x,y,width,height.", Required = false)]
+        [Option('c', "croparea", HelpText = "Area to consider for classification training. Expected format is: x,y,width,height.", Required = false)]
         public string CropArea { get; set; }
 
         [Option('i', "interactive", HelpText = "Prompt for user confirmation before uploading and tagging.", Required = false, Default = true)]
@@ -79,13 +79,15 @@ namespace azcv_classifier_util
             // Explore subdirectories
             var totalFileCount = 0;
             Console.WriteLine($"Base folder: {Options.Folder}");
+            Console.WriteLine();
             foreach (var directory in tagDirectories)
             {
                 var files = Directory.GetFiles(directory);
                 totalFileCount += files.Length;
-                Console.WriteLine($"  - {directory}, {files.Length} image(s)");
+                Console.WriteLine($"  - {directory.Split(Path.DirectorySeparatorChar).Last()}, {files.Length} image(s)");
             }
-            Console.WriteLine($"{totalFileCount} images in total");
+            Console.WriteLine();
+            Console.WriteLine($"{totalFileCount} image(s) in total");
 
             if (Options.IsInteractive)
             {
@@ -103,9 +105,11 @@ namespace azcv_classifier_util
             foreach (var directory in tagDirectories)
             {
                 var targetTagName = Path.GetDirectoryName(directory).Split(Path.DirectorySeparatorChar).Last();
-                var targetTag = trainingApi.CreateTag(Options.ProjectId, targetTagName);
+                Microsoft.Azure.CognitiveServices.Vision.CustomVision.Training.Models.Tag targetTag;
                 if (targetTagName.ToLowerInvariant() == "negative")
-                    targetTag.Type = "Negative";
+                    targetTag = trainingApi.CreateTag(Options.ProjectId, targetTagName, type: "Negative");
+                else
+                    targetTag = trainingApi.CreateTag(Options.ProjectId, targetTagName);
                 foreach (var file in Directory.GetFiles(directory))
                 {                    
                     Console.Write($"[{fileCount++.ToString(fileCountFormat)}/{totalFileCount}] Processing {Path.Combine(directory, file)}...");
@@ -127,9 +131,8 @@ namespace azcv_classifier_util
                             image.Mutate(x => x.Crop(cropRect));
                             using (var stream = new MemoryStream())
                             {
-                                image.Save(stream, new JpegEncoder());
-                                trainingApi.CreateImagesFromData(Options.ProjectId, stream, new List<Guid>() { targetTag.Id });
-                                
+                                image.Save(stream, new JpegEncoder() { Quality = 100 });
+                                trainingApi.CreateImagesFromData(Options.ProjectId, stream, new List<Guid>() { targetTag.Id });                                
                             }
                         }
                     }
