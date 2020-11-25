@@ -6,12 +6,12 @@ namespace azcv_classifier_util
 {
     class Options
     {
-        [Option('p', "projectid", Required = true, HelpText = "Project ID.")]
+        [Option('p', "projectid", HelpText = "Project ID.", Required = true)]
         public string ProjectId { get; set; }
     }
 
     [Verb("tag", HelpText = "Add file contents to the index.")]
-    class ResetOptions
+    class TagOptions
     {
         [Option('f', "folder", HelpText = "Folder where the training images will be loaded from.", Required = true)]
         public string Folder { get; set; }
@@ -43,9 +43,25 @@ namespace azcv_classifier_util
 
     class Program
     {
+        public const string VERSION = "1.0";
+
         static async Task Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
+            Console.WriteLine($"Azure Custom Vision Classifier Utility v{Program.VERSION}");
+
+            var res = CommandLine.Parser.Default.ParseArguments<TagOptions, TrainOptions, PublishOptions, AugmentOptions>(args)
+                .MapResult(
+                  (TagOptions opts) => throw new NotImplementedException(),
+                  (TrainOptions opts) => throw new NotImplementedException(),
+                  (PublishOptions opts) => throw new NotImplementedException(),
+                  (AugmentOptions opts) => RunAugment(opts),
+                  (TestOptions opts) => throw new NotImplementedException(),
+                  errs => 1);
+        }
+
+        private static object RunAugment(AugmentOptions opts)
+        {
+            return (new Augment(opts)).Process();
         }
     }
 }
