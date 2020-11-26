@@ -1,4 +1,5 @@
 ﻿using CommandLine;
+using Microsoft.Azure.CognitiveServices.Vision.CustomVision.Prediction.Models;
 using Microsoft.Azure.CognitiveServices.Vision.CustomVision.Training;
 using Newtonsoft.Json;
 using System;
@@ -40,16 +41,20 @@ namespace azcv_classifier_util
             }
             
             Console.WriteLine();
-            Console.WriteLine("Deleting images...");
-            trainingApi.DeleteImages(Options.ProjectId);
-            Console.WriteLine("Deleting tags...");
-            var tags = trainingApi.GetTags(Options.ProjectId);
-            foreach (var tag in tags)
+            try
             {
-                Console.WriteLine($" - {tag.Name}");
-                trainingApi.DeleteTag(Options.ProjectId, tag.Id);
+                Console.WriteLine("Deleting images...");
+                trainingApi.DeleteImages(Options.ProjectId);
+                Console.WriteLine("Deleting tags...");
+                var tags = trainingApi.GetTags(Options.ProjectId);
+                foreach (var tag in tags)
+                {
+                    Console.WriteLine($" - {tag.Name}");
+                    trainingApi.DeleteTag(Options.ProjectId, tag.Id);
+                }
+                Console.WriteLine("Done!");
             }
-            Console.WriteLine("Done!");           
+            catch (CustomVisionErrorException ex) { Console.WriteLine($"Error: {ex.DetailedMessage()}"); }
 
             return new object();
         }

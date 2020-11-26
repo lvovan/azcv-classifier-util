@@ -1,4 +1,5 @@
 ﻿using CommandLine;
+using Microsoft.Azure.CognitiveServices.Vision.CustomVision.Prediction.Models;
 using Microsoft.Azure.CognitiveServices.Vision.CustomVision.Training;
 using Newtonsoft.Json;
 using System;
@@ -32,11 +33,18 @@ namespace azcv_classifier_util
             var trainingApi = CvService.AuthenticateTraining(settings.CvTrainingEndpoint, settings.CvTrainingKey, settings.CvPredictionKey);
 
             var project = trainingApi.GetProject(Options.ProjectId);
-            trainingApi.TrainProject(Options.ProjectId, reservedBudgetInHours: Options.BudgetHours);
 
-            Console.WriteLine();
-            Console.WriteLine($"Training of project '{project.Name}' started!");
+            try
+            {
+                trainingApi.TrainProject(Options.ProjectId, reservedBudgetInHours: Options.BudgetHours);
 
+                Console.WriteLine();
+                Console.WriteLine($"Training of project '{project.Name}' started!");
+            }
+            catch (CustomVisionErrorException ex)
+            {
+                Console.WriteLine($"Error: {ex.DetailedMessage()}");
+            }
             return new object();
         }
     }

@@ -39,7 +39,7 @@ namespace azcv_classifier_util
             var res = CommandLine.Parser.Default.ParseArguments<TagOptions, TrainOptions, PublishOptions, AugmentOptions, TestOptions, ResetOptions>(args)
                 .MapResult(
                   (TagOptions opts) => RunTag(opts),
-                  (TrainOptions opts) => throw new NotImplementedException(),
+                  (TrainOptions opts) => RunTrain(opts),
                   (PublishOptions opts) => throw new NotImplementedException(),
                   (AugmentOptions opts) => RunAugment(opts),
                   (TestOptions opts) => throw new NotImplementedException(),
@@ -62,6 +62,11 @@ namespace azcv_classifier_util
         private static object RunReset(ResetOptions opts)
         {
             return (new Reset(opts)).Process();
+        }
+
+        private static object RunTrain(TrainOptions opts)
+        {
+            return (new Train(opts)).Process();
         }
     }
 }

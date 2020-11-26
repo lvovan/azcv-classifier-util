@@ -1,8 +1,10 @@
 ﻿using CommandLine;
 using Microsoft.Azure.CognitiveServices.Vision.CustomVision.Training;
+using Microsoft.Azure.CognitiveServices.Vision.CustomVision.Training.Models;
 using Newtonsoft.Json;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.Processing;
 using System;
 using System.Collections.Generic;
@@ -27,6 +29,8 @@ namespace azcv_classifier_util
 
     class Tag
     {
+        const int BATCH_SIZE = 4;
+
         public TagOptions Options { get; set; }
 
         public Tag(TagOptions options)
@@ -86,16 +90,18 @@ namespace azcv_classifier_util
                 totalFileCount += files.Length;
                 Console.WriteLine($"  - {directory.Split(Path.DirectorySeparatorChar).Last()}, {files.Length} image(s)");
             }
-            Console.WriteLine();
             Console.WriteLine($"{totalFileCount} image(s) in total");
-
-            if (Options.IsInteractive)
+            if (totalFileCount == 0)
+                Console.WriteLine("Nothing to do...");
+            else if (Options.IsInteractive)
             {
                 Console.WriteLine();
                 Console.WriteLine("Press CTRL+C to abort or ENTER to continue...");
                 Console.ReadLine();
             }
             Console.WriteLine();
+            if (totalFileCount == 0)
+                return new object();
 
             // Go through each subdirectory
             var fileCountFormat = string.Empty;
@@ -104,43 +110,94 @@ namespace azcv_classifier_util
             var fileCount = 1;
             foreach (var directory in tagDirectories)
             {
-                var targetTagName = Path.GetDirectoryName(directory).Split(Path.DirectorySeparatorChar).Last();
-                Microsoft.Azure.CognitiveServices.Vision.CustomVision.Training.Models.Tag targetTag;
-                if (targetTagName.ToLowerInvariant() == "negative")
-                    targetTag = trainingApi.CreateTag(Options.ProjectId, targetTagName, type: "Negative");
-                else
-                    targetTag = trainingApi.CreateTag(Options.ProjectId, targetTagName);
-                foreach (var file in Directory.GetFiles(directory))
-                {                    
-                    Console.Write($"[{fileCount++.ToString(fileCountFormat)}/{totalFileCount}] Processing {Path.Combine(directory, file)}...");
+                var targetTagName = directory.Split(Path.DirectorySeparatorChar).Last();
+                Microsoft.Azure.CognitiveServices.Vision.CustomVision.Training.Models.Tag targetTag = null;
 
-                    // If no cropping is required
-                    if (cropRect == Rectangle.Empty)
+                try
+                {
+                    targetTag = trainingApi.GetTags(Options.ProjectId).SingleOrDefault(t => t.Name == targetTagName);
+
+                    // If a tag with this name does not already exist, create it
+                    if (targetTag == null)
                     {
-                        using (var stream = new MemoryStream(File.ReadAllBytes(file)))
+                        if (targetTagName.ToLowerInvariant() == "negative")
                         {
-                            trainingApi.CreateImagesFromData(Options.ProjectId, stream, new List<Guid>() { targetTag.Id });
+                            targetTag = trainingApi.CreateTag(Options.ProjectId, targetTagName, type: "Negative");
+                        }
+                        else
+                            targetTag = trainingApi.CreateTag(Options.ProjectId, targetTagName);
+                        Console.WriteLine($"Created tag '{targetTagName}' (id={targetTag.Id})");
+                    }
+                    else
+                        Console.WriteLine($"Reusing existing tag '{targetTag.Name}' (id={targetTag.Id})");
+                }
+                catch (CustomVisionErrorException ex)
+                {
+                    Console.WriteLine($"Error: {ex.DetailedMessage()}");
+                    return new object();
+                }
+
+                if (cropRect == Rectangle.Empty)
+                {
+                    Console.WriteLine($"Batch uploading content from {directory}....");
+                    var imageFiles = Directory.GetFiles(directory).Select(img => new ImageFileCreateEntry(Path.GetFileName(img), File.ReadAllBytes(img))).ToList();
+                    try
+                    {
+                        while (imageFiles.Any())
+                        {
+                            var batchSize = Math.Min(imageFiles.Count, BATCH_SIZE);
+                            var ifcb = new ImageFileCreateBatch(imageFiles.Take(batchSize).ToList(), new List<Guid>() { targetTag.Id });
+                            var res = trainingApi.CreateImagesFromFiles(Options.ProjectId, ifcb);
+                            var errorCount = PrintBatchErrors(res);
+                            imageFiles.RemoveRange(0, batchSize);
+                            fileCount += batchSize;
+                            Console.WriteLine($" {batchSize} files uploaded with {errorCount} errors ({fileCount} total)");
                         }
                     }
-
-                    // If cropping is required
-                    else
+                    catch (CustomVisionErrorException ex) { Console.WriteLine($"Error: {ex.DetailedMessage()}"); }
+                    fileCount += imageFiles.Count;
+                }
+                else
+                {
+                    foreach (var file in Directory.GetFiles(directory))
                     {
-                        using (var image = Image.Load(file))
+                        Console.Write($"[{fileCount++.ToString(fileCountFormat)}/{totalFileCount}] Processing {Path.Combine(directory, file)}...");
+                        using (var image = SixLabors.ImageSharp.Image.Load(file))
                         {
                             image.Mutate(x => x.Crop(cropRect));
                             using (var stream = new MemoryStream())
                             {
-                                image.Save(stream, new JpegEncoder() { Quality = 100 });
-                                trainingApi.CreateImagesFromData(Options.ProjectId, stream, new List<Guid>() { targetTag.Id });                                
+                                //image.Save(stream, new JpegEncoder() { Quality = 100 });
+                                image.Save(stream, new PngEncoder());
+                                image.Save(@"c:\temp\test.png", new PngEncoder());
+
+                                try
+                                {
+                                    var res = trainingApi.CreateImagesFromData(Options.ProjectId, stream, new List<Guid>() { targetTag.Id });
+                                    var errorCount = PrintBatchErrors(res);
+                                }
+                                catch (CustomVisionErrorException ex) { Console.WriteLine($"Error: {ex.DetailedMessage()}"); }
                             }
                         }
                     }
-                    Console.WriteLine("ok");
                 }
             }
 
             return new object();
+        }
+
+        private int PrintBatchErrors(ImageCreateSummary res)
+        {
+            int errorCount = 0;
+            if (res.IsBatchSuccessful)
+                return errorCount;
+
+            foreach (var r in res.Images.Where(i => !i.Status.StartsWith("OK", StringComparison.InvariantCultureIgnoreCase)))
+            {
+                Console.WriteLine($"{r.Image?.Id}: {r.Status}");
+                errorCount++;
+            }
+            return errorCount;
         }
     }
 }
