@@ -30,6 +30,7 @@ namespace azcv_classifier_util
     {
         public const string VERSION = "1.0";
         public const string SETTINGS_FILE = "settings.json";
+        public const string CONFIRM_PHRASE = "CTRL+C to abort or ENTER to continue...";
 
         static async Task Main(string[] args)
         {

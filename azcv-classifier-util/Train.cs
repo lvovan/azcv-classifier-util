@@ -16,6 +16,8 @@ namespace azcv_classifier_util
         [Option('b', "budgethours", HelpText = "Maximum number of reserved training hours (Default: none for 'quick training').", Required = false)]
         public int? BudgetHours { get; set; }
 
+        [Option('e', "email", HelpText = "Email address the service will send an email to when the training is completed.", Required = false)]
+        public string Email { get; set; }
     }
 
     class Train
@@ -36,7 +38,7 @@ namespace azcv_classifier_util
 
             try
             {
-                trainingApi.TrainProject(Options.ProjectId, reservedBudgetInHours: Options.BudgetHours);
+                trainingApi.TrainProject(Options.ProjectId, reservedBudgetInHours: Options.BudgetHours, notificationEmailAddress: Options.Email);
 
                 Console.WriteLine();
                 Console.WriteLine($"Training of project '{project.Name}' started!");

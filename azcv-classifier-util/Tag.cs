@@ -23,7 +23,7 @@ namespace azcv_classifier_util
         [Option('c', "croparea", HelpText = "Area to consider for classification training. Expected format is: x,y,width,height.", Required = false)]
         public string CropArea { get; set; }
 
-        [Option('i', "interactive", HelpText = "Prompt for user confirmation before uploading and tagging.", Required = false, Default = true)]
+        [Option('i', "interactive", HelpText = "Prompt for user confirmation before uploading, tagging and deleting temporary cropping folder.", Required = false, Default = true)]
         public bool IsInteractive { get; set; }
     }
 
@@ -76,6 +76,7 @@ namespace azcv_classifier_util
             {
                 Console.WriteLine("No cropping will be performed.");
             }
+            Console.WriteLine();
 
             var settings = JsonConvert.DeserializeObject<Settings>(File.ReadAllText(Program.SETTINGS_FILE));
             var trainingApi = CvService.AuthenticateTraining(settings.CvTrainingEndpoint, settings.CvTrainingKey, settings.CvPredictionKey);
@@ -83,23 +84,31 @@ namespace azcv_classifier_util
             // Explore subdirectories
             var totalFileCount = 0;
             Console.WriteLine($"Base folder: {Options.Folder}");
-            Console.WriteLine();
             foreach (var directory in tagDirectories)
             {
                 var files = Directory.GetFiles(directory);
                 totalFileCount += files.Length;
-                Console.WriteLine($"  - {directory.Split(Path.DirectorySeparatorChar).Last()}, {files.Length} image(s)");
+                Console.WriteLine($"    /{directory.Split(Path.DirectorySeparatorChar).Last()}, {files.Length} image(s)");
             }
-            Console.WriteLine($"{totalFileCount} image(s) in total");
+            Console.WriteLine("    --------");
+            Console.WriteLine($"    {totalFileCount} image(s) in total");
             if (totalFileCount == 0)
                 Console.WriteLine("Nothing to do...");
             else if (Options.IsInteractive)
             {
                 Console.WriteLine();
-                Console.WriteLine("Press CTRL+C to abort or ENTER to continue...");
+                Console.WriteLine(Program.CONFIRM_PHRASE);
                 Console.ReadLine();
             }
+            else
+            {
+                Console.WriteLine();
+            }
+
+            var project = trainingApi.GetProject(Options.ProjectId);
+            Console.WriteLine($"Target project is '{project.Name}'");
             Console.WriteLine();
+
             if (totalFileCount == 0)
                 return new object();
 
@@ -137,53 +146,86 @@ namespace azcv_classifier_util
                     return new object();
                 }
 
+                Console.WriteLine();
                 if (cropRect == Rectangle.Empty)
                 {
-                    Console.WriteLine($"Batch uploading content from {directory}....");
-                    var imageFiles = Directory.GetFiles(directory).Select(img => new ImageFileCreateEntry(Path.GetFileName(img), File.ReadAllBytes(img))).ToList();
-                    try
-                    {
-                        while (imageFiles.Any())
-                        {
-                            var batchSize = Math.Min(imageFiles.Count, BATCH_SIZE);
-                            var ifcb = new ImageFileCreateBatch(imageFiles.Take(batchSize).ToList(), new List<Guid>() { targetTag.Id });
-                            var res = trainingApi.CreateImagesFromFiles(Options.ProjectId, ifcb);
-                            var errorCount = PrintBatchErrors(res);
-                            imageFiles.RemoveRange(0, batchSize);
-                            fileCount += batchSize;
-                            Console.WriteLine($" {batchSize} files uploaded with {errorCount} errors ({fileCount} total)");
-                        }
-                    }
-                    catch (CustomVisionErrorException ex) { Console.WriteLine($"Error: {ex.DetailedMessage()}"); }
-                    fileCount += imageFiles.Count;
+                    fileCount = UploadFolder(trainingApi, fileCount, directory, targetTag);
                 }
                 else
                 {
+                    // Crops into temporary files
+                    //foreach (var file in Directory.GetFiles(directory))
+                    //{
+                    //    Console.Write($"[{fileCount++.ToString(fileCountFormat)}/{totalFileCount}] Processing {Path.Combine(directory, file)}...");
+                    //    using (var image = SixLabors.ImageSharp.Image.Load(file))
+                    //    {
+                    //        image.Mutate(x => x.Crop(cropRect));
+                    //        using (var stream = new MemoryStream())
+                    //        {
+                    //            //image.Save(stream, new JpegEncoder() { Quality = 100 });
+                    //            var tmpFile = Path.GetTempFileName();
+
+                    //            try
+                    //            {
+                    //                var res = trainingApi.CreateImagesFromData(Options.ProjectId, stream, new List<Guid>() { targetTag.Id });
+                    //                var errorCount = PrintBatchErrors(res);
+                    //            }
+                    //            catch (CustomVisionErrorException ex) { Console.WriteLine($"Error: {ex.DetailedMessage()}"); }
+                    //        }
+                    //    }
+                    //}
+                    var tempDir = Path.Combine(Path.GetTempPath(), targetTagName);
+                    if (Directory.Exists(tempDir) && Options.IsInteractive)
+                    {
+                        Console.WriteLine($"Temporary folder {tempDir} already exists.");
+                        Console.WriteLine(Program.CONFIRM_PHRASE);
+                        Console.ReadLine();
+                    }
+                    else
+                    {
+                        Directory.CreateDirectory(tempDir);
+                        Console.Write($"Created temporary folder {tempDir}");
+                    }
                     foreach (var file in Directory.GetFiles(directory))
                     {
-                        Console.Write($"[{fileCount++.ToString(fileCountFormat)}/{totalFileCount}] Processing {Path.Combine(directory, file)}...");
+                        Console.Write($"Cropping {Path.Combine(directory.Split(Path.DirectorySeparatorChar).Last(), file)}...");
                         using (var image = SixLabors.ImageSharp.Image.Load(file))
                         {
                             image.Mutate(x => x.Crop(cropRect));
-                            using (var stream = new MemoryStream())
-                            {
-                                //image.Save(stream, new JpegEncoder() { Quality = 100 });
-                                image.Save(stream, new PngEncoder());
-                                image.Save(@"c:\temp\test.png", new PngEncoder());
-
-                                try
-                                {
-                                    var res = trainingApi.CreateImagesFromData(Options.ProjectId, stream, new List<Guid>() { targetTag.Id });
-                                    var errorCount = PrintBatchErrors(res);
-                                }
-                                catch (CustomVisionErrorException ex) { Console.WriteLine($"Error: {ex.DetailedMessage()}"); }
-                            }
+                            image.Save(Path.Combine(tempDir, Path.GetFileName(file)), new JpegEncoder() { Quality = 100 });
                         }
+                        Console.WriteLine("ok");
                     }
+
+                    fileCount = UploadFolder(trainingApi, fileCount, tempDir, targetTag);
+                    Directory.Delete(tempDir, true);
+                    Console.WriteLine($"Deleted {tempDir}");
                 }
             }
 
             return new object();
+        }
+
+        private int UploadFolder(CustomVisionTrainingClient trainingApi, int fileCount, string directory, Microsoft.Azure.CognitiveServices.Vision.CustomVision.Training.Models.Tag targetTag)
+        {
+            Console.WriteLine($"Batch uploading content from {directory}....");
+            var imageFiles = Directory.GetFiles(directory).Select(img => new ImageFileCreateEntry(Path.GetFileName(img), File.ReadAllBytes(img))).ToList();
+            try
+            {
+                while (imageFiles.Any())
+                {
+                    var batchSize = Math.Min(imageFiles.Count, BATCH_SIZE);
+                    var ifcb = new ImageFileCreateBatch(imageFiles.Take(batchSize).ToList(), new List<Guid>() { targetTag.Id });
+                    var res = trainingApi.CreateImagesFromFiles(Options.ProjectId, ifcb);
+                    var errorCount = PrintBatchErrors(res);
+                    imageFiles.RemoveRange(0, batchSize);
+                    fileCount += batchSize;
+                    Console.WriteLine($" {batchSize} files uploaded with {errorCount} errors ({fileCount} total)");
+                }
+            }
+            catch (CustomVisionErrorException ex) { Console.WriteLine($"Error: {ex.DetailedMessage()}"); }
+            fileCount += imageFiles.Count;
+            return fileCount;
         }
 
         private int PrintBatchErrors(ImageCreateSummary res)
