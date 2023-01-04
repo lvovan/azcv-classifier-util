@@ -1,8 +1,7 @@
 {
   "profiles": {
     "azcv-classifier-util": {
-      "commandName": "Project",
-      "commandLineArgs": "tag -p c0b2708b-8a05-46ea-be16-49a5c48a8d09 -f C:\\temp\\ARIES14_02 -c 320,580,240,300"
+    
     }
   }
 }

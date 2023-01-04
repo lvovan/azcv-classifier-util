@@ -1,0 +1,51 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Use IntelliSense to find out which attributes exist for C# debugging
+      // Use hover for the description of the existing attributes
+      // For further information visit https://github.com/OmniSharp/omnisharp-vscode/blob/master/debugger-launchjson.md
+      "name": "Migrate",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      // If you have changed target frameworks, make sure to update the program path.
+      "program": "${workspaceFolder}/azcv-classifier-util/bin/Debug/net7.0/azcv-classifier-util.dll",
+      "args": ["migrate", 
+        "--sourceProjectId", "8892946f-10c5-4884-94a4-da6c95f98d67", 
+        "--sourceEndpoint", "https://hennessy-cv.cognitiveservices.azure.com/", 
+        "--destinationEndpoint", "https://japaneast.api.cognitive.microsoft.com/", 
+        "--sourceKey", "abc",
+        "--destinationKey", "abc"],
+      "cwd": "${workspaceFolder}/azcv-classifier-util",
+      // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
+      "console": "integratedTerminal",
+      "stopAtEntry": false
+    },
+    {
+      // Use IntelliSense to find out which attributes exist for C# debugging
+      // Use hover for the description of the existing attributes
+      // For further information visit https://github.com/OmniSharp/omnisharp-vscode/blob/master/debugger-launchjson.md
+      "name": "Backup",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build",
+      // If you have changed target frameworks, make sure to update the program path.
+      "program": "${workspaceFolder}/azcv-classifier-util/bin/Debug/net7.0/azcv-classifier-util.dll",
+      "args": ["backup", 
+        "-p", "8892946f-10c5-4884-94a4-da6c95f98d67", 
+        "--path", ".", 
+        "--endpoint", "https://hennessy-cv.cognitiveservices.azure.com/", 
+        "--key", "abc" ],
+      "cwd": "${workspaceFolder}/azcv-classifier-util",
+      // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
+      "console": "integratedTerminal",
+      "stopAtEntry": false
+    },
+    {
+      "name": ".NET Core Attach",
+      "type": "coreclr",
+      "request": "attach"
+    }
+  ]
+}
