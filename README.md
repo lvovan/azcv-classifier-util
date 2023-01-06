@@ -1,4 +1,5 @@
-# azcv-classifier-util
+![Build status](https://github.com/lvovan/azcv-classifier-util/actions/workflows/dotnet.yml/badge.svg)
+# azcv-classifier-util 
 
 A command line utility to easily script [Azure Custom Vision](https://customvision.ai) image classifiers projects.
 
