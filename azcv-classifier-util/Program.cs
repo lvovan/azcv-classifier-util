@@ -1,73 +1,35 @@
 ﻿using CommandLine;
 using System;
 using System.Threading.Tasks;
+using System.Reflection;
 
 namespace azcv_classifier_util
 {
-    class CvOptions
+  class Program
+  {
+    public const string CONFIRM_PHRASE = "CTRL+C to abort or ENTER to continue...";
+
+    static async Task Main(string[] args)
     {
-        [Option('p', "projectid", HelpText = "Project ID.", Required = true)]
-        public Guid ProjectId { get; set; }
+      await Parser.Default.ParseArguments<TagVerb, TrainVerb, PublishVerb, AugmentVerb, TestVerb, ResetVerb, MigrateVerb, BackupVerb>(args)
+        .MapResult(
+          (TagVerb opts) => new CreateTag(opts).ProcessAsync(),
+          (TrainVerb opts) => new Train(opts).ProcessAsync(),
+          (PublishVerb opts) =>
+          {
+            Console.WriteLine("Not implemented");
+            return Task.CompletedTask;
+          },
+          (AugmentVerb opts) => new Augment(opts).ProcessAsync(),
+          (TestVerb opts) =>
+          {
+            Console.WriteLine("Not implemented");
+            return Task.CompletedTask;
+          },
+          (ResetVerb opts) => new Reset(opts).ProcessAsync(),
+          (MigrateVerb opts) => new Migrate(opts).ProcessAsync(),
+          (BackupVerb opts) => new Backup(opts).ProcessAsync(),
+          errs => Task.FromResult(1));
     }
-
-    [Verb("publish", HelpText = "Publish the model.")]
-    class PublishOptions: CvOptions
-    {
-    }
-
-
-    [Verb("test", HelpText = "Test a local image")]
-    class TestOptions: CvOptions
-    {
-        [Value(0, MetaName = "image file",
-            HelpText = "Image file to run against the published model.",
-            Required = true)]
-        public string ImageFile { get; set; }
-    }
-
-
-    class Program
-    {
-        public const string VERSION = "1.0";
-        public const string SETTINGS_FILE = "settings.json";
-        public const string CONFIRM_PHRASE = "CTRL+C to abort or ENTER to continue...";
-
-        static async Task Main(string[] args)
-        {
-            Console.WriteLine($"Azure Custom Vision Classifier Utility v{Program.VERSION}");
-            Console.WriteLine();
-
-            var res = CommandLine.Parser.Default.ParseArguments<TagOptions, TrainOptions, PublishOptions, AugmentOptions, TestOptions, ResetOptions>(args)
-                .MapResult(
-                  (TagOptions opts) => RunTag(opts),
-                  (TrainOptions opts) => RunTrain(opts),
-                  (PublishOptions opts) => throw new NotImplementedException(),
-                  (AugmentOptions opts) => RunAugment(opts),
-                  (TestOptions opts) => throw new NotImplementedException(),
-                  (ResetOptions opts) => RunReset(opts),
-                  errs => 1);
-
-            Console.WriteLine();
-        }
-
-        private static object RunTag(TagOptions opts)
-        {
-            return (new Tag(opts)).Process();
-        }
-
-        private static object RunAugment(AugmentOptions opts)
-        {
-            return (new Augment(opts)).Process();
-        }
-
-        private static object RunReset(ResetOptions opts)
-        {
-            return (new Reset(opts)).Process();
-        }
-
-        private static object RunTrain(TrainOptions opts)
-        {
-            return (new Train(opts)).Process();
-        }
-    }
+  }
 }

@@ -1,53 +1,69 @@
 ﻿using CommandLine;
+using CommandLine.Text;
 using Microsoft.Azure.CognitiveServices.Vision.CustomVision.Prediction.Models;
 using Microsoft.Azure.CognitiveServices.Vision.CustomVision.Training;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Text;
+using System.Threading.Tasks;
 
 namespace azcv_classifier_util
 {
+  [Verb("train", HelpText = "Trains the model.")]
+  class TrainVerb : CommonOptions
+  {
+    [Option('b', "budgethours", HelpText = "Maximum number of reserved training hours (Default: none for 'quick training').", Required = false)]
+    public int? BudgetHours { get; set; }
 
-    [Verb("train", HelpText = "Trains the model.")]
-    class TrainOptions : CvOptions
+    [Option('e', "email", HelpText = "Email address the service will send an email to when the training is completed.", Required = false)]
+    public string Email { get; set; }
+
+    [Usage(ApplicationAlias = "azcv-classifier-util")]
+    public static IEnumerable<Example> Examples
     {
-        [Option('b', "budgethours", HelpText = "Maximum number of reserved training hours (Default: none for 'quick training').", Required = false)]
-        public int? BudgetHours { get; set; }
+      get
+      {
+        yield return new Example("Start training project with id 20eff755-2f7a-48ef-b413-27ffac77cb78",
+          new TrainVerb
+          {
+            Endpoint = "https://contoso.cognitiveservices.azure.com/",
+            Key = "MyCVEndpointKey",
+            ProjectId = Guid.Parse("20eff755-2f7a-48ef-b413-27ffac77cb78")
+          });
+      }
+    }
+  }
 
-        [Option('e', "email", HelpText = "Email address the service will send an email to when the training is completed.", Required = false)]
-        public string Email { get; set; }
+  class Train
+  {
+    private TrainVerb options { get; set; }
+
+    public Train(TrainVerb options)
+    {
+      this.options = options;
     }
 
-    class Train
+    public async Task ProcessAsync()
     {
-        public TrainOptions Options { get; set; }
-
-        public Train(TrainOptions options)
+      using (var client =
+        new CustomVisionTrainingClient(new Microsoft.Azure.CognitiveServices.Vision.CustomVision.Training.ApiKeyServiceClientCredentials(this.options.Key))
         {
-            Options = options;
-        }
+          Endpoint = this.options.Endpoint
+        })
+      {
+        var project = await client.GetProjectAsync(options.ProjectId);
 
-        public object Process()
+        try
         {
-            var settings = JsonConvert.DeserializeObject<Settings>(File.ReadAllText(Program.SETTINGS_FILE));
-            var trainingApi = CvService.AuthenticateTraining(settings.CvTrainingEndpoint, settings.CvTrainingKey, settings.CvPredictionKey);
+          await client.TrainProjectAsync(options.ProjectId, reservedBudgetInHours: options.BudgetHours, notificationEmailAddress: options.Email);
 
-            var project = trainingApi.GetProject(Options.ProjectId);
-
-            try
-            {
-                trainingApi.TrainProject(Options.ProjectId, reservedBudgetInHours: Options.BudgetHours, notificationEmailAddress: Options.Email);
-
-                Console.WriteLine();
-                Console.WriteLine($"Training of project '{project.Name}' started!");
-            }
-            catch (CustomVisionErrorException ex)
-            {
-                Console.WriteLine($"Error: {ex.DetailedMessage()}");
-            }
-            return new object();
+          Console.WriteLine();
+          Console.WriteLine($"Training of project '{project.Name}' started!");
         }
+        catch (CustomVisionErrorException ex)
+        {
+          Console.WriteLine($"Error: {ex.DetailedMessage()}");
+        }
+      }
     }
+  }
 }
