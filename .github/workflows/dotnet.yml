@@ -36,4 +36,4 @@ jobs:
         # Artifact name
         # name: # optional, default is artifact
         # A file, directory or wildcard pattern that describes what to upload
-        path: azcv-classifier-util/bin/Debug/net7.0/linux-x64/azcv-classifier-util.dll
+        path: azcv-classifier-util/bin/Debug/net7.0/linux-x64/*
