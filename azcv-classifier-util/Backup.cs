@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using CommandLine;
 using CommandLine.Text;
 using Microsoft.Azure.CognitiveServices.Vision.CustomVision.Training;
+using Microsoft.Azure.CognitiveServices.Vision.CustomVision.Training.Models;
 using Newtonsoft.Json;
 
 namespace azcv_classifier_util
@@ -64,7 +65,13 @@ namespace azcv_classifier_util
           var projectMeta = await client.ExportProjectAsync(this.options.ProjectId);
           var project = await client.GetProjectAsync(this.options.ProjectId);
           var tags = await client.GetTagsAsync(this.options.ProjectId);
-          var images = await client.GetImagesAsync(this.options.ProjectId, take: projectMeta.ImageCount, skip: 0);
+          var images = new List<Image>();
+
+          var take = 256; // Take maximum value is 256
+          for (int i = 0; i * take <= projectMeta.ImageCount; i++)
+          {
+            images.AddRange(await client.GetImagesAsync(this.options.ProjectId, take: take, skip: i * take));
+          }
 
           var projectDTO = new ProjectBackup()
           {
