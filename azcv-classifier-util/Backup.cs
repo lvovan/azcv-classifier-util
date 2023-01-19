@@ -68,7 +68,7 @@ namespace azcv_classifier_util
           var images = new List<Image>();
 
           var take = 256; // Take maximum value is 256
-          for (int i = 1; i * take <= projectMeta.ImageCount; i++)
+          for (int i = 0; i * take <= projectMeta.ImageCount; i++)
           {
             images.AddRange(await client.GetImagesAsync(this.options.ProjectId, take: take, skip: i * take));
           }
