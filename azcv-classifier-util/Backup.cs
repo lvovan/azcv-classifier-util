@@ -83,14 +83,14 @@ namespace azcv_classifier_util
               Id = i.Id,
               Width = i.Width,
               Height = i.Height,
-              Regions = i.Regions.Select(r => new RegionBackup()
+              Regions = i.Regions?.Select(r => new RegionBackup()
               {
                 Height = r.Height,
                 Left = r.Left,
                 TagId = r.TagId,
                 Top = r.Top,
                 Width = r.Width
-              }).ToList(),
+              })?.ToList(),
               Uri = i.OriginalImageUri
             }).ToList(),
             Tags = tags,
