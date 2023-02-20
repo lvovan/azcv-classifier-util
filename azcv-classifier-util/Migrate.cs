@@ -79,20 +79,13 @@ namespace azcv_classifier_util
           Endpoint = destinationEndpoint
         })
       {
-        try
-        {
-          // https://learn.microsoft.com/en-us/rest/api/customvision/training3.3/export-project/export-project?tabs=HTTP#projectexport
-          var sourceProject = await sourceClient.ExportProjectAsync(this.options.SourceProjectId);
+        // https://learn.microsoft.com/en-us/rest/api/customvision/training3.3/export-project/export-project?tabs=HTTP#projectexport
+        var sourceProject = await sourceClient.ExportProjectAsync(this.options.SourceProjectId);
 
-          // https://learn.microsoft.com/en-us/rest/api/customvision/training3.3/import-project/import-project?tabs=HTTP
-          var destinationProject = await destinationClient.ImportProjectAsync(sourceProject.Token, this.options.DestinationName);
+        // https://learn.microsoft.com/en-us/rest/api/customvision/training3.3/import-project/import-project?tabs=HTTP
+        var destinationProject = await destinationClient.ImportProjectAsync(sourceProject.Token, this.options.DestinationName);
 
-          Console.WriteLine($"The project {this.options.SourceProjectId} was successfully migrated to {destinationProject.Name} ({destinationProject.Id})");
-        }
-        catch (Exception ex)
-        {
-          Console.WriteLine(ex.Message);
-        }
+        Console.WriteLine($"The project {this.options.SourceProjectId} was successfully migrated to {destinationProject.Name} ({destinationProject.Id})");
       }
     }
   }

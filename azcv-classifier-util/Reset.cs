@@ -41,20 +41,16 @@ namespace azcv_classifier_util
         }
 
         Console.WriteLine();
-        try
+        Console.WriteLine("Deleting images...");
+        await client.DeleteImagesAsync(options.ProjectId);
+        Console.WriteLine("Deleting tags...");
+        var tags = await client.GetTagsAsync(options.ProjectId);
+        foreach (var tag in tags)
         {
-          Console.WriteLine("Deleting images...");
-          await client.DeleteImagesAsync(options.ProjectId);
-          Console.WriteLine("Deleting tags...");
-          var tags = await client.GetTagsAsync(options.ProjectId);
-          foreach (var tag in tags)
-          {
-            Console.WriteLine($" - {tag.Name}");
-            await client.DeleteTagAsync(options.ProjectId, tag.Id);
-          }
-          Console.WriteLine("Done!");
+          Console.WriteLine($" - {tag.Name}");
+          await client.DeleteTagAsync(options.ProjectId, tag.Id);
         }
-        catch (CustomVisionErrorException ex) { Console.WriteLine($"Error: {ex.DetailedMessage()}"); }
+        Console.WriteLine("Done!");
       }
     }
   }

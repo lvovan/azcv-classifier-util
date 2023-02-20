@@ -52,17 +52,10 @@ namespace azcv_classifier_util
       {
         var project = await client.GetProjectAsync(options.ProjectId);
 
-        try
-        {
-          await client.TrainProjectAsync(options.ProjectId, reservedBudgetInHours: options.BudgetHours, notificationEmailAddress: options.Email);
+        await client.TrainProjectAsync(options.ProjectId, reservedBudgetInHours: options.BudgetHours, notificationEmailAddress: options.Email);
 
-          Console.WriteLine();
-          Console.WriteLine($"Training of project '{project.Name}' started!");
-        }
-        catch (CustomVisionErrorException ex)
-        {
-          Console.WriteLine($"Error: {ex.DetailedMessage()}");
-        }
+        Console.WriteLine();
+        Console.WriteLine($"Training of project '{project.Name}' started!");
       }
     }
   }
